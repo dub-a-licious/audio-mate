@@ -107,7 +107,7 @@ namespace AudioMate {
 
         public bool uiInitialized;
 
-        private bool _debug = true;
+        private bool _debug = false;
         private bool _restoring;
         private bool _needsSourceClipsRefresh;
         private bool _initializingUI;
@@ -128,7 +128,6 @@ namespace AudioMate {
         public override void Init()
         {
             Log("### Init ###");
-
             try
             {
                 base.Init();
@@ -168,7 +167,6 @@ namespace AudioMate {
                 }
             }
             InitCollections();
-            Log("-> RestoreFromLast");
             containingAtom.RestoreFromLast(this);
         }
 
@@ -191,7 +189,6 @@ namespace AudioMate {
 
         private IEnumerator InitUIDeferred()
         {
-            Log("### InitUIDeferred ###");
             if ((UnityEngine.Object) ui != (UnityEngine.Object) null ||
                 _initializingUI) yield break;
             _initializingUI = true;
@@ -225,21 +222,15 @@ namespace AudioMate {
             {
                 if (++count > 200)
                 {
-                    if (!collections.isInitialized)
-                    {
-                        SuperController.LogError("AudioMate: Could not initialize collection manager.");
-                    }
-                    else
-                    {
-                        SuperController.LogError("AudioMate: Collection manager is null.");
-                    }
+                    SuperController.LogError(!collections.isInitialized
+                        ? "AudioMate: Could not initialize collection manager."
+                        : "AudioMate: Collection manager is null.");
 
                     yield break;
                 }
                 yield return new WaitForSeconds(.1f);
                 if ((UnityEngine.Object) this == (UnityEngine.Object) null) yield break;
             }
-            Log($"InitUIDeferred: While loop needed {count} loops until collection manager was initialized.");
             try
             {
                 ui.Bind(collections);
@@ -334,8 +325,8 @@ namespace AudioMate {
             };
             RegisterString(_fileLoader);
 
-            DebugToggleJSON = new JSONStorableBool("Debug", true, val => _debug = val);
-            RegisterBool(DebugToggleJSON);
+            // DebugToggleJSON = new JSONStorableBool("Debug", true, val => _debug = val);
+            // RegisterBool(DebugToggleJSON);
         }
         #endregion
 
@@ -385,8 +376,6 @@ namespace AudioMate {
         #region Load / Save
         public override JSONClass GetJSON(bool includePhysical = true, bool includeAppearance = true, bool forceStore = false)
         {
-            Log("### GetJSON ###");
-
             var json = base.GetJSON(includePhysical, includeAppearance, forceStore);
 
             if (collections == null) return json;
@@ -398,8 +387,6 @@ namespace AudioMate {
 
         public override void RestoreFromJSON(JSONClass jc, bool restorePhysical = true, bool restoreAppearance = true, JSONArray presetAtoms = null, bool setMissingToDefault = true)
         {
-            Log($"### RestoreFromJSON ### {jc}");
-
             base.RestoreFromJSON(jc, restorePhysical, restoreAppearance, presetAtoms, setMissingToDefault);
             try
             {
@@ -428,7 +415,6 @@ namespace AudioMate {
         public void Load(JSONNode json)
         {
             if ((UnityEngine.Object) collections == (UnityEngine.Object) null) return;
-            Log("### Load ### JSONNode json: {json}");
             try
             {
                 if (_restoring) return;
@@ -543,12 +529,11 @@ namespace AudioMate {
             if (string.IsNullOrEmpty(triggerName)) return;
             var receiverTargetName = AudioMateCollectionManager.GetPlayRandomClipActionName(collections.ActiveCollection.Name);
             var newTrigger = _triggers.AddTriggerAction(TriggerColliderChooserJSON.val, triggerName, storeId, receiverTargetName, triggerType);
-            Log($"Added new {triggerType} action {triggerName} for collider trigger {TriggerColliderChooserJSON.val}");
+            //Log($"Added new {triggerType} action {triggerName} for collider trigger {TriggerColliderChooserJSON.val}");
         }
 
         private void UpdateTriggerActionNamesOnCollectionRename(string oldCollectionName, string newCollectionName)
         {
-            Log("### UpdateTriggerActionNamesOnCollectionRename ###");
             if (string.IsNullOrEmpty(Tools.TrimAll(oldCollectionName)) || string.IsNullOrEmpty(Tools.TrimAll(newCollectionName))) return;
 
             foreach (var triggerCollider in TriggerColliderChooserJSON.choices)
@@ -556,13 +541,10 @@ namespace AudioMate {
                 var oldTriggerActionName = GetPlayRandomClipTriggerName(triggerCollider, oldCollectionName);
                 var newTriggerActionName = GetPlayRandomClipTriggerName(triggerCollider, newCollectionName);
                 var newTriggerActionReceiverName = AudioMateCollectionManager.GetPlayRandomClipActionName(newCollectionName);
-                //Log($"   {oldTriggerActionName} -> {newTriggerActionName} | new receiver: {newTriggerActionReceiverName}");
 
                 _triggers.UpdateTriggerAction(oldTriggerActionName, newTriggerActionName, newTriggerActionReceiverName, TriggerManager.StartTriggerAction);
                 _triggers.UpdateTriggerAction(oldTriggerActionName, newTriggerActionName, newTriggerActionReceiverName, TriggerManager.EndTriggerAction);
             }
-
-            //controller.containingAtom.GetStorableByID("JawControl").SetBoolParamValue("driveXRotationFromAudioSource", true);
         }
 
         private static string GetPlayRandomClipTriggerName(string triggerCollider, string collectionName)
@@ -578,7 +560,6 @@ namespace AudioMate {
         public void OnActiveCollectionSelected(AudioMateCollectionManager.ActiveCollectionSelectedEventArgs eventArgs)
         {
             if ((UnityEngine.Object) collections == (UnityEngine.Object) null) return;
-            Log($"### OnActiveCollectionSelected ###");
 
             var atom = collections.ActiveCollection?.ReceiverAtom;
             if (atom == null) return;
@@ -591,7 +572,6 @@ namespace AudioMate {
 
         public void OnActiveCollectionNameChanged(AudioMateCollectionManager.ActiveCollectionNameChangedEventArgs eventArgs)
         {
-            Log($"### OnActiveCollectionNameChanged ###");
             UpdateTriggerActionNamesOnCollectionRename(eventArgs.Before, eventArgs.After);
         }
 
@@ -600,8 +580,6 @@ namespace AudioMate {
 		*/
         private void SetAudioSourceAtom(string uid)
         {
-            Log($"### SetAudioSourceAtom '{uid}' ###");
-
             if (Tools.IsEmptyChoice(uid) || (UnityEngine.Object) collections == (UnityEngine.Object) null || collections.ActiveCollection == null) return;
             try
             {
@@ -613,11 +591,9 @@ namespace AudioMate {
                     return;
                 }
                 var atomChanged = collections.ActiveCollection.ReceiverAtom != sourceAtom.uid;
-                Log($"atomChanged: {atomChanged}");
                 collections.ActiveCollection.ReceiverAtom = sourceAtom.uid;
                 if (!atomChanged) return;
                 var guessedReceiver = GuessInitialReceivingNode(sourceAtom);
-                Log($"guessed receiver: {guessedReceiver}");
                 _receivingNodeJSON.val = guessedReceiver;
             }
             catch (Exception e)
@@ -631,9 +607,7 @@ namespace AudioMate {
 		*/
         private void SetAudioSourceReceiver(string uid)
         {
-            Log($"### SetAudioSourceReceiver '{uid}' ###");
-
-            if (Tools.IsEmptyChoice(uid) || collections?.ActiveCollection == null) return;
+            if (Tools.IsEmptyChoice(uid) || (UnityEngine.Object) collections == (UnityEngine.Object) null || collections.ActiveCollection == null) return;
             sourceReceiver = SuperController.singleton.GetAtomByUid(_receivingAtomJSON.val)?.GetStorableByID(uid);
             if (sourceReceiver == null) return;
             _receivingNodeJSON.valNoCallback = sourceReceiver.name;
@@ -653,7 +627,7 @@ namespace AudioMate {
         }
 
         /**
-         * UI debugging. Needs the VAM Dev Tools by Acidbubbles (https://github.com/acidbubbles/vam-devtools) to work.
+         * UI debugging. Depends on VAM Dev Tools by Acidbubbles (https://github.com/acidbubbles/vam-devtools).
          */
         public void DebugObject(Transform obj)
         {

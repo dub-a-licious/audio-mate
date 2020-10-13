@@ -156,20 +156,12 @@ namespace AudioMate
 
         public void OnAtomRename(string oldID, string newID)
         {
-            Log($"### OnAtomRename ### oldID: {oldID}, newID: {newID}");
-        }
-
-        public  void Validate() {
-            Log($"### Validate ###");
+            // Nothing to see here...
         }
 
         private void Log(string message)
         {
-            if ((UnityEngine.Object) _controller == (UnityEngine.Object) null)
-            {
-                SuperController.LogMessage($"AudioMate: [TriggerManager]: ${message}");
-                return;
-            }
+            if ((UnityEngine.Object) _controller == (UnityEngine.Object) null) return;
             _controller.Log($"TriggerManager: {message}");
         }
     }

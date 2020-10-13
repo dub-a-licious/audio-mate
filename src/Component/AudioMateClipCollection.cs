@@ -140,7 +140,7 @@ namespace AudioMate
             {
                 if (jn == null || jn.AsObject == null)
                 {
-                    SuperController.LogMessage($"AudioMate.{nameof(AudioMateClipCollection)}.{nameof(Parse)} Method called with null JSONNode");
+                    SuperController.LogMessage($"AudioMate.{nameof(AudioMateClipCollection)}.{nameof(Parse)} param jn is null");
                     return false;
                 }
                 _clips.Clear();
@@ -167,6 +167,7 @@ namespace AudioMate
             catch (Exception e)
             {
                 SuperController.LogError($"AudioMate.{nameof(AudioMateClipCollection)}.{nameof(Parse)} {e}");
+                return false;
             }
 
             return true;
@@ -320,10 +321,6 @@ namespace AudioMate
                 Receiver =
                     SuperController.singleton.GetAtomByUid(ReceiverAtom)?.GetStorableByID(ReceiverNode)
                         as AudioSourceControl;
-                if ((UnityEngine.Object) Receiver == (UnityEngine.Object) null)
-                {
-                    _controller.Log("Invalid Audio Controller!");
-                }
             }
             catch (Exception e)
             {
@@ -385,11 +382,6 @@ namespace AudioMate
         public override string ToString()
         {
             return _clips.Aggregate("", (current, clip) => current + (clip.DisplayName + Environment.NewLine));
-        }
-
-        private void Log(string message)
-        {
-            _controller.Log(message);
         }
     }
 }

@@ -99,13 +99,13 @@ namespace AudioMate.UI
 
         public void Init(AudioMateController mainController)
         {
-            Log("--- Init ---");
             if ((UnityEngine.Object) mainController == (UnityEngine.Object) null)
             {
                 SuperController.LogError("AudioMate: Error during UI initialization. Controller or Collection Manager are set to null.");
                 return;
             }
             controller = mainController;
+            Log("### Init ###");
             _leftUI = leftPanel.AddComponent<VamPrefabFactory>();
             _leftUI.controller = controller;
 
@@ -120,7 +120,7 @@ namespace AudioMate.UI
                 SuperController.LogError("AudioMate: Error during bind. collectionManager is null.");
                 return;
             }
-            Log("--- Bind ---");
+            Log("### Bind ###");
             Collections = collectionManager;
             _activeCollection = Collections.ActiveCollection;
             clipLibrary.Bind();
@@ -147,10 +147,9 @@ namespace AudioMate.UI
         #region UI
         public void InitUI()
         {
-            Log("--- InitUI ---");
             if ((UnityEngine.Object) controller == (UnityEngine.Object) null) return;
 
-            //InitHeaderUI(); // TODO Costs too much space. Maybe I can add a splash screen or something like that later
+            //InitHeaderUI(); // TODO Costs too much UI space. Maybe I could add a splash screen or something like that.
             InitImportUI();
             InitAudioReceiverUI();
             InitActiveCollectionUI();
@@ -170,8 +169,6 @@ namespace AudioMate.UI
 
         private void InitAudioReceiverUI()
         {
-            Log("--- InitAudioReceiverUI ---");
-
             if (ReceiverAtomJSON == null || ReceiverNodeJSON == null) return;
 
             var receiverAtomUI = _leftUI.CreatePopup(ReceiverAtomJSON, true);
@@ -213,7 +210,6 @@ namespace AudioMate.UI
 
         private void InitActiveCollectionUI()
         {
-            Log("--- InitActiveCollectionUI ---");
             var btnGroup = rightPanel.AddComponent<HorizontalButtonGroup>();
             btnGroup.CreateButton("New", Styles.Success,
                 () => Collections.AddCollection());
@@ -251,7 +247,6 @@ namespace AudioMate.UI
 
         private void InitAddToCollectionControlsUI()
         {
-            Log("--- InitAddToCollectionControlsUI ---");
             _btnGroupAddClips = leftPanel.AddComponent<HorizontalButtonGroup>();
             _btnGroupAddClips.CreateLabel("Add");
             _btnGroupAddClips.CreateButton("10");
@@ -262,7 +257,6 @@ namespace AudioMate.UI
 
         private void InitImportUI()
         {
-            Log("--- InitImportUI ---");
             var btnGroup = leftPanel.AddComponent<HorizontalButtonGroup>();
             //btnGroup.Padding = new RectOffset(0, 0, 0, -15);
             btnGroup.CreateButton("Import File", Styles.Default, () =>
@@ -293,7 +287,6 @@ namespace AudioMate.UI
 
         private void InitPlaybackOptionsUI()
         {
-            Log("--- InitPlaybackOptionsUI ---");
             _sliderPlayChanceJSON = new JSONStorableFloat("Play Chance", 1f, (float val) =>
             {
                 _activeCollection.PlayChance = val;
@@ -332,7 +325,6 @@ namespace AudioMate.UI
 
         private void InitTriggerUI()
         {
-            Log("--- InitTriggerUI ---");
             _rightUI.CreateSpacer().height = 10f;
             _rightUI.CreatePopup(controller.TriggerColliderChooserJSON, true);
             var btnGroup = rightPanel.AddComponent<HorizontalButtonGroup>();
@@ -346,19 +338,16 @@ namespace AudioMate.UI
             {
                 controller.OnAddTriggerButtonClicked(TriggerManager.EndTriggerAction);
             });
-            //_rightUI.CreateSpacer().height = 10f;
         }
 
         private void InitClipLibraryUI()
         {
-            Log("--- InitClipLibraryUI ---");
             clipLibrary = ClipLibrary.AddTo(leftPanel.transform);
             clipLibrary.Init(controller);
         }
 
         private void InitDebugging()
         {
-            Log("--- InitDebugging ---");
             _leftUI.CreateToggle(controller.DebugToggleJSON);
         }
 
@@ -422,11 +411,7 @@ namespace AudioMate.UI
         #region Helpers
         private void Log(string message)
         {
-            if ((UnityEngine.Object) controller == (UnityEngine.Object) null)
-            {
-                SuperController.LogMessage($"AudioMate: [UIManager]: ${message}");
-                return;
-            }
+            if ((UnityEngine.Object) controller == (UnityEngine.Object) null) return;
             controller.Log($" [UIManager]: {message}");
         }
         #endregion

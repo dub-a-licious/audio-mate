@@ -86,7 +86,7 @@ namespace AudioMate.UI
         {
             if ((UnityEngine.Object) controller == (UnityEngine.Object) null) return;
             _controller = controller;
-            Log("### Init");
+            Log("### Init ###");
             _buttonPrefab = controller.manager.configurableButtonPrefab;
             Clips = new List<AudioMateClip>();
 
@@ -97,7 +97,7 @@ namespace AudioMate.UI
 
         public void Bind()
         {
-            Log("### Bind");
+            Log("### Bind ###");
             _collections = _controller.collections;
             _activeCollection = _collections.ActiveCollection;
             _isBound = true;
@@ -184,7 +184,6 @@ namespace AudioMate.UI
         {
             var clip = new AudioMateClip(sourceClip);
             var clipUID = GetClipObjectName(clip);
-            //Log(clipUID);
             var go = new GameObject(clipUID);
             go.transform.SetParent(_content, false);
             var gridLayout = go.AddComponent<HorizontalLayoutGroup>();
@@ -226,7 +225,6 @@ namespace AudioMate.UI
 
         public void RefreshUI()
         {
-            Log($"RefreshUI");
             if (_activeCollection == null) return;
             foreach (var clip in Clips)
             {
@@ -258,17 +256,8 @@ namespace AudioMate.UI
             _isBound = false;
             try
             {
-                if (Clips != null)
-                {
-                    foreach (var audioMateClip in Clips)
-                    {
-                        Clips?.Remove(audioMateClip);
-                        audioMateClip?.Destroy();
-                        if (Clips == null) break;
-                    }
-                }
-
-                Destroy(_content);
+                SuperController.singleton.StopCoroutine(DeferredWaitForSourceClips());
+                if (_content != null) Destroy(_content);
             }
             catch (Exception e)
             {
@@ -278,12 +267,8 @@ namespace AudioMate.UI
 
         private void Log(string message)
         {
-            if ((UnityEngine.Object) _controller == (UnityEngine.Object) null)
-            {
-                SuperController.LogMessage($"AudioMate: [ClipLibrary]: ${message}");
-                return;
-            }
-            _controller.Log($" [ClipLibrary]: ${message}");
+            if ((UnityEngine.Object) _controller == (UnityEngine.Object) null) return;
+            _controller.Log($" [ClipLibrary]: {message}");
         }
     }
 }

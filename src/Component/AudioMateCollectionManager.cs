@@ -142,8 +142,6 @@ namespace AudioMate
         private bool RemoveCollection(AudioMateClipCollection collection)
         {
             var collectionName = collection?.Name;
-            Log($"Collection name {collectionName}");
-
             if (string.IsNullOrEmpty(collectionName)) return false;
             CollectionsJSON.choices.Remove(collectionName);
             RemoveCollectionActions(collectionName);
@@ -155,8 +153,6 @@ namespace AudioMate
         public bool RemoveActiveCollection()
         {
             var collectionIndex = _collections.IndexOf(ActiveCollection);
-            Log($"Remove collection at index {collectionIndex}");
-
             var result = RemoveCollection(ActiveCollection);
             if (_collections.Count == 0)
             {
@@ -393,7 +389,6 @@ namespace AudioMate
          */
         public void AddNewCollectionActions(string collectionName)
         {
-            Log("### AddNewCollectionActions ###");
             if (string.IsNullOrEmpty(collectionName))
             {
                 Log($"{nameof(AddNewCollectionActions)}: collectionName is empty");
@@ -416,7 +411,6 @@ namespace AudioMate
 
         private void UpdateCollectionActionNames(string oldCollectionName, string newCollectionName)
         {
-            Log("### UpdateCollectionActionNames ###");
             if (string.IsNullOrEmpty(oldCollectionName) || string.IsNullOrEmpty(newCollectionName))
             {
                 Log($"{nameof(AddNewCollectionActions)}: one or both input values are empty");
@@ -491,15 +485,7 @@ namespace AudioMate
 
         public void Parse(JSONNode json)
         {
-            if (json == null || json.AsObject == null)
-            {
-                Log("Parsing failed: empty JSONNode received.");
-                return;
-            }
-            else
-            {
-                Log($"Parse: {json}");
-            }
+            if (json == null || json.AsObject == null) return;
             try
             {
                 _collections.Clear();
@@ -511,10 +497,6 @@ namespace AudioMate
                     if (newCollection.Parse(collectionJSON))
                     {
                         AddCollection(newCollection);
-                    }
-                    else
-                    {
-                        newCollection = null;
                     }
                 }
 
@@ -530,38 +512,11 @@ namespace AudioMate
             }
         }
 
-        /*private JSONNode Sanitize(JSONNode jn)
-        {
-            try
-            {
-                _controller.Log($"{jn}");
-                if (string.IsNullOrEmpty(jn["name"])) jn["name"] = GetAvailableDefaultName();
-                if (string.IsNullOrEmpty(jn["enabled"])) jn["enabled"] = true.ToString();
-                if (string.IsNullOrEmpty(jn["receiverAtom"])) jn["receiverAtom"] = _controller.containingAtom.uid;
-                if (string.IsNullOrEmpty(jn["receiverNode"])) jn["receiverNode"] = _controller.GuessInitialReceivingNode;
-                if (string.IsNullOrEmpty(jn["shuffle"])) jn["shuffle"] = true.ToString();
-                if (string.IsNullOrEmpty(jn["alwaysQueue"])) jn["alwaysQueue"] = false.ToString();
-                if (string.IsNullOrEmpty(jn["onlyIfClear"])) jn["onlyIfClear"] = false.ToString();
-                if (string.IsNullOrEmpty(jn["playChance"])) jn["playChance"] = 1f.ToString(CultureInfo.InvariantCulture);
-                if (string.IsNullOrEmpty(jn["lastClipIndex"])) jn["lastClipIndex"] = 0.ToString(CultureInfo.InvariantCulture);
-            }
-            catch (Exception e)
-            {
-                SuperController.LogError($"AudioMate.{nameof(AudioMateCollectionManager)}.{nameof(Sanitize)}: {e}");
-            }
-
-            return jn;
-        }*/
-
         #endregion
 
         private void Log(string message)
         {
-            if ((UnityEngine.Object) _controller == (UnityEngine.Object) null)
-            {
-                SuperController.LogError($"AudioMate.{nameof(AudioMateCollectionManager)}.{nameof(Log)}: Controller is null.");
-                return;
-            }
+            if ((UnityEngine.Object) _controller == (UnityEngine.Object) null) return;
             _controller.Log($"AudioMateCollectionManager: {message}");
         }
 
