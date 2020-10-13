@@ -1,0 +1,11 @@
+﻿src/Extension/RectTransformExtensions.cs
+src/UI/Styles.cs
+src/UI/Element/HorizontalButtonGroup.cs
+src/UI/VamPrefabFactory.cs
+src/UI/ClipLibrary.cs
+src/UI/UIManager.cs
+src/Component/TriggerManager.cs
+src/Component/AudioMateClip.cs
+src/Component/AudioMateClipCollection.cs
+src/Component/AudioMateCollectionManager.cs
+src/AudioMateController.cs
