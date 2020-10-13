@@ -408,7 +408,7 @@ namespace AudioMate {
                 if (restoredJSON == null || restoredJSON.AsObject == null || $"{restoredJSON}" == "{}") return;
                 if ((UnityEngine.Object) collections == (UnityEngine.Object) null)
                 {
-                    SuperController.singleton.StartCoroutine(LoadDeferred(jc));
+                    SuperController.singleton.StartCoroutine(LoadDeferred(restoredJSON));
                 }
                 else
                 {
