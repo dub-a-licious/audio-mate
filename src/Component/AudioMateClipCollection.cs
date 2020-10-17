@@ -82,12 +82,11 @@ namespace AudioMate
 
         public AudioMateClipCollection(JSONNode jn, AudioMateController controller)
         {
-            if (jn == null) return;
+            if (jn == null || jn.AsObject == null) return;
             try
             {
                 _controller = controller;
                 Parse(jn);
-                Init();
             }
             catch (Exception e)
             {
@@ -143,6 +142,7 @@ namespace AudioMate
                     SuperController.LogMessage($"AudioMate.{nameof(AudioMateClipCollection)}.{nameof(Parse)} param jn is null");
                     return false;
                 }
+
                 _clips.Clear();
                 Name = jn["name"];
                 Enabled = jn["enabled"].AsBool;
@@ -153,23 +153,22 @@ namespace AudioMate
                 OnlyIfClear = jn["onlyIfClear"].AsBool;
                 PlayChance = jn["playChance"].AsFloat;
                 _lastPlayedClipIndex = jn["lastClipIndex"].AsInt;
-
                 if (jn["clips"] != null)
                 {
                     foreach (JSONClass clip in jn["clips"].AsArray)
                     {
-                        _clips.Add(new AudioMateClip(clip));
+                        var provisionalClip = new AudioMateClip(clip) { IsProvisional = true };
+                        _clips.Add(provisionalClip);
                     }
                 }
                 ResetUnplayedClips();
-                SyncAudioReceiver();
+                Init();
             }
             catch (Exception e)
             {
                 SuperController.LogError($"AudioMate.{nameof(AudioMateClipCollection)}.{nameof(Parse)} {e}");
                 return false;
             }
-
             return true;
         }
 
@@ -209,8 +208,19 @@ namespace AudioMate
 
         public void Clear()
         {
+            foreach (var clip in _clips)
+            {
+                clip.Destroy();
+            }
             _clips.Clear();
             ResetUnplayedClips();
+        }
+
+        public void SwapProvisionalClip(AudioMateClip provisionalClip, AudioMateClip audioMateClip)
+        {
+            var index = _clips.IndexOf(provisionalClip);
+            _clips.Remove(provisionalClip);
+            _clips.Insert(index, audioMateClip);
         }
 
         public void Enable()
@@ -221,6 +231,11 @@ namespace AudioMate
         public void Disable()
         {
             Enabled = false;
+        }
+
+        public List<AudioMateClip> GetProvisionalClips()
+        {
+            return _clips.FindAll(x => x.IsProvisional);
         }
 
         /**

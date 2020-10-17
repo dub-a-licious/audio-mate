@@ -65,6 +65,8 @@ namespace AudioMate
 
         public AudioMateClipUI UI;
 
+        public bool IsProvisional;
+
         public AudioMateClip(NamedAudioClip sourceClip)
         {
             SourceClip = sourceClip;
@@ -103,8 +105,7 @@ namespace AudioMate
         private void FromJSON(JSONNode jn)
         {
             if (jn == null || jn.AsObject == null) return;
-            var clipUID = jn["sourceClip"];
-            if (clipUID == null) clipUID = jn["sourceClipUID"];
+            var clipUID = jn["sourceClip"] != null ? jn["sourceClip"] : jn["sourceClipUID"];
             SourceClip = URLAudioClipManager.singleton.GetClip(clipUID);
         }
 

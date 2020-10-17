@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using AudioMate.UI;
-using Battlehub.Utils;
-using Leap.Unity;
 using SimpleJSON;
 using UnityEngine;
 using UnityEngine.Events;
@@ -34,6 +31,9 @@ namespace AudioMate
         private AudioMateController _controller;
         private UIManager _ui;
         private readonly List<AudioMateClipCollection> _collections = new List<AudioMateClipCollection>();
+
+        public IEnumerable<AudioMateClipCollection> CollectionsWithProvisionalClips =>
+            _collections.FindAll(x => x.GetProvisionalClips().Count > 0);
 
         private readonly Dictionary<string,CollectionActions> _collectionActions = new Dictionary<string, CollectionActions>();
 
@@ -489,10 +489,8 @@ namespace AudioMate
             try
             {
                 _collections.Clear();
-
-                foreach (var collectionJSON in json.Childs)
+                foreach (var collectionJSON in json.Childs.ToList())
                 {
-                    //json = Sanitize(json);
                     var newCollection = new AudioMateClipCollection(collectionJSON["name"], _controller);
                     if (newCollection.Parse(collectionJSON))
                     {
@@ -503,6 +501,7 @@ namespace AudioMate
                 if (_collections.Count > 0)
                 {
                     SelectActiveCollection(_collections.First());
+                    _controller.needsProvisionalClipProcessing = true;
                 }
             }
             catch (Exception e)

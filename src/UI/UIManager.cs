@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using AudioMate.Extension;
+using uFileBrowser;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -259,30 +260,8 @@ namespace AudioMate.UI
         {
             var btnGroup = leftPanel.AddComponent<HorizontalButtonGroup>();
             //btnGroup.Padding = new RectOffset(0, 0, 0, -15);
-            btnGroup.CreateButton("Import File", Styles.Default, () =>
-            {
-                SuperController.singleton.GetMediaPathDialog((string path) =>
-                {
-                    if (string.IsNullOrEmpty(path))
-                    {
-                        return;
-                    }
-
-                    controller.LoaderPathStorable.val = path;
-                }, "Custom/Sounds");
-            });
-            btnGroup.CreateButton("Import Folder", Styles.Default, () =>
-            {
-                SuperController.singleton.GetDirectoryPathDialog((string path) =>
-                {
-                    if (string.IsNullOrEmpty(path))
-                    {
-                        return;
-                    }
-
-                    controller.LoaderPathStorable.val = path;
-                }, "Custom/Sounds");
-            });
+            btnGroup.CreateButton("Import File", Styles.Default, controller.fileManager.OpenImportFileDialog);
+            btnGroup.CreateButton("Import Folder", Styles.Default, controller.fileManager.OpenImportFolderDialog);
         }
 
         private void InitPlaybackOptionsUI()
@@ -366,6 +345,7 @@ namespace AudioMate.UI
         public void RefreshCollectionClipList()
         {
             _activeCollectionClipListText.text = _activeCollection.ToString();
+            clipLibrary.RefreshUI();
         }
 
         public void OnAtomRename(string oldID, string newID)

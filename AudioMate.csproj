@@ -94,6 +94,7 @@
   <ItemGroup>
     <Compile Include="AudioMate.cslist" />
     <Compile Include="src\AudioMateController.cs" />
+    <Compile Include="src\Component\FileManager.cs" />
     <Compile Include="src\Extension\RectTransformExtensions.cs" />
     <Compile Include="src\Component\AudioMateClip.cs" />
     <Compile Include="src\Component\AudioMateClipCollection.cs" />

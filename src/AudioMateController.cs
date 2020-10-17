@@ -5,6 +5,7 @@ using UnityEngine;
 using SimpleJSON;
 using UnityEngine.UI;
 using AudioMate.UI;
+using UnityEngine.Serialization;
 
 namespace AudioMate {
 
@@ -20,7 +21,7 @@ namespace AudioMate {
         public const string TriggerActions = "TriggerActions";
     }
 
-    #region Helpers
+    #region Tools
     public static class Tools
     {
         /// <summary>
@@ -100,29 +101,32 @@ namespace AudioMate {
         }
         public AudioMateCollectionManager collections;
         public UIManager ui;
-        public Atom sourceAtom;
-        public JSONStorableStringChooser CollectionsJSON;
-        public JSONStorable sourceReceiver;
-        public JSONStorableUrl LoaderPathStorable;
+        public new MVRPluginManager Manager => base.manager;
+        public FileManager fileManager;
+        private TriggerManager _triggers;
 
+        public Atom receivingAtom;
+        public JSONStorable receivingNode;
+
+        public bool needsProvisionalClipProcessing;
         public bool uiInitialized;
 
-        private bool _debug = false;
         private bool _restoring;
         private bool _needsSourceClipsRefresh;
         private bool _initializingUI;
-        private string _lastLoadPath;
 
-        private JSONStorableString _fileLoader;
-        private TriggerManager _triggers;
+        private string _missingReceiverNodeStoreId = "";
+
+        private const bool _debug = false;
+
+        private JSONStorableString _fileManagerJSON;
+        public JSONStorableStringChooser CollectionsJSON;
         private JSONStorableAction _playRandomClipActionJSON;
         private JSONStorableAction _queueRandomClipActionJSON;
         private JSONStorableStringChooser _receivingAtomJSON;
         private JSONStorableStringChooser _receivingNodeJSON;
         public JSONStorableStringChooser TriggerColliderChooserJSON;
         public JSONStorableBool DebugToggleJSON { get; set; }
-
-        public new MVRPluginManager Manager => base.manager;
 
         #region Initialization
         public override void Init()
@@ -133,7 +137,7 @@ namespace AudioMate {
                 base.Init();
                 _triggers = new TriggerManager(this);
                 InitStorables();
-                InitFileLoader();
+                InitFileManager();
                 StartCoroutine(DeferredInit());
             }
             catch (Exception e)
@@ -255,7 +259,9 @@ namespace AudioMate {
             try
             {
                 collections = gameObject.AddComponent<AudioMateCollectionManager>();
+                collections.OnActiveCollectionSelected.RemoveAllListeners();
                 collections.OnActiveCollectionSelected.AddListener(OnActiveCollectionSelected);
+                collections.OnActiveCollectionNameChanged.RemoveAllListeners();
                 collections.OnActiveCollectionNameChanged.AddListener(OnActiveCollectionNameChanged);
                 _playRandomClipActionJSON = new JSONStorableAction(Storables.PlayRandomClipAction,
                     () => collections.PlayRandomClipAction());
@@ -271,21 +277,11 @@ namespace AudioMate {
             }
         }
 
-        private void InitFileLoader()
+        private void InitFileManager()
         {
-            Log("### InitFileLoader ###");
-            // TODO Refactor this to its own file loader component
-            _lastLoadPath = SuperController.singleton.currentLoadDir;
-
-
-            LoaderPathStorable = new JSONStorableUrl("LastImportPath", _lastLoadPath, (string path) =>
-            {
-                if (string.IsNullOrEmpty(path))
-                {
-                    return;
-                }
-                _lastLoadPath = ImportAudioFiles(path);
-            });
+            Log("### InitFileManager ###");
+            fileManager = gameObject.AddComponent<FileManager>();
+            fileManager.Bind(_fileManagerJSON);
         }
 
         private void InitStorables()
@@ -304,11 +300,13 @@ namespace AudioMate {
             RegisterStringChooser(CollectionsJSON);
 
             _receivingAtomJSON = new JSONStorableStringChooser(Storables.ReceivingAtom, null,
-                containingAtom.uid, "Receiver Atom", SetAudioSourceAtom);
+                containingAtom.uid, "Receiver Atom", SetReceivingAtom);
+            _receivingAtomJSON.storeType = JSONStorableParam.StoreType.Full;
             RegisterStringChooser(_receivingAtomJSON);
 
             _receivingNodeJSON = new JSONStorableStringChooser(Storables.ReceivingNode, null,
-                GuessInitialReceivingNode(containingAtom), "Receiver Node", SetAudioSourceReceiver);
+                GuessInitialReceivingNode(containingAtom), "Receiver Node", SetReceivingNode);
+            _receivingNodeJSON.storeType = JSONStorableParam.StoreType.Full;
             RegisterStringChooser(_receivingNodeJSON);
 
             TriggerColliderChooserJSON = new JSONStorableStringChooser(
@@ -318,12 +316,12 @@ namespace AudioMate {
                 "Trigger Actions");
             RegisterStringChooser(TriggerColliderChooserJSON);
 
-            _fileLoader = new JSONStorableString("File Loader", "")
+            _fileManagerJSON = new JSONStorableString("File Manager", "")
             {
                 isStorable = false,
                 isRestorable = false
             };
-            RegisterString(_fileLoader);
+            RegisterString(_fileManagerJSON);
 
             // DebugToggleJSON = new JSONStorableBool("Debug", true, val => _debug = val);
             // RegisterBool(DebugToggleJSON);
@@ -334,7 +332,11 @@ namespace AudioMate {
         public void OnEnable()
         {
             _needsSourceClipsRefresh = true;
-            if (collections != null) collections.EnableAll();
+            if (collections != null)
+            {
+                collections.EnableAll();
+                ui.RefreshCollectionClipList();
+            }
         }
 
         public void OnDisable()
@@ -359,9 +361,18 @@ namespace AudioMate {
         public void Update()
         {
             if (!uiInitialized || (UnityEngine.Object) collections == (UnityEngine.Object) null) return;
-            if (insideRestore || !_needsSourceClipsRefresh) return;
-            _needsSourceClipsRefresh = false;
-            ui.RefreshClipLibrary();
+            if (insideRestore) return;
+            if (needsProvisionalClipProcessing && ui.clipLibrary.IsUpdated)
+            {
+                needsProvisionalClipProcessing = false;
+                ui.clipLibrary.ProcessProvisionalClips();
+            }
+            if (_needsSourceClipsRefresh)
+            {
+                _needsSourceClipsRefresh = false;
+                ui.RefreshClipLibrary();
+            }
+            FindMissingReceiverNode();
         }
 
         protected void OnAtomRename(string oldID, string newID)
@@ -452,7 +463,7 @@ namespace AudioMate {
         #region File Import
         private string ImportAudioFiles(string requestedPath)
         {
-            if (_fileLoader == null) return null;
+            if (_fileManagerJSON == null) return null;
             try
             {
                 SuperController.singleton.GetFilesAtPath(requestedPath).ToList().ForEach((string fileName) =>
@@ -468,7 +479,7 @@ namespace AudioMate {
                     }
 
                     LoadAudio(fileName);
-                    _fileLoader.val += SuperController.singleton.NormalizePath(fileName) + "\n";
+                    _fileManagerJSON.val += SuperController.singleton.NormalizePath(fileName) + "\n";
                 });
                 ui.clipLibrary.OnSourceClipsUpdated();
                 return requestedPath;
@@ -491,7 +502,7 @@ namespace AudioMate {
 
                     //clipsSource.Add(LoadAudio(fileName));
                     LoadAudio(fileName);
-                    _fileLoader.val += SuperController.singleton.NormalizePath(fileName) + "\n";
+                    _fileManagerJSON.val += SuperController.singleton.NormalizePath(fileName) + "\n";
                 });
                 ui.clipLibrary.OnSourceClipsUpdated();
                 return requestedPath;
@@ -517,6 +528,15 @@ namespace AudioMate {
             return nac ?? null;
         }
 
+        #endregion
+
+        #region Helpers
+
+        public AudioMateClip FindAudioMateClipBySourceClipUID(string sourceClipUID)
+        {
+            var audioMateClip = ui.clipLibrary.FindAudioMateClipBySourceClipUID(sourceClipUID);
+            return audioMateClip;
+        }
         #endregion
 
         #region Callbacks
@@ -578,43 +598,61 @@ namespace AudioMate {
         /**
 		* Load audio source ReceiverAtom.
 		*/
-        private void SetAudioSourceAtom(string uid)
+        private void SetReceivingAtom(string uid)
         {
             if (Tools.IsEmptyChoice(uid) || (UnityEngine.Object) collections == (UnityEngine.Object) null || collections.ActiveCollection == null) return;
             try
             {
-                sourceAtom = SuperController.singleton.GetAtomByUid(uid);
-                if (sourceAtom == null)
+                receivingAtom = SuperController.singleton.GetAtomByUid(uid);
+                if (receivingAtom == null)
                 {
                     SuperController.LogError(
-                        $"AudioMate.{nameof(AudioMateController)}.{nameof(SetAudioSourceAtom)}: Audio Source ReceiverAtom has invalid uid {uid}");
+                        $"AudioMate.{nameof(AudioMateController)}.{nameof(SetReceivingAtom)}: Audio Source ReceiverAtom has invalid uid {uid}");
                     return;
                 }
-                var atomChanged = collections.ActiveCollection.ReceiverAtom != sourceAtom.uid;
-                collections.ActiveCollection.ReceiverAtom = sourceAtom.uid;
+                var atomChanged = collections.ActiveCollection.ReceiverAtom != receivingAtom.uid;
+                collections.ActiveCollection.ReceiverAtom = receivingAtom.uid;
                 if (!atomChanged) return;
-                var guessedReceiver = GuessInitialReceivingNode(sourceAtom);
+                var guessedReceiver = GuessInitialReceivingNode(receivingAtom);
+                insideRestore = true;
                 _receivingNodeJSON.val = guessedReceiver;
+                insideRestore = false;
             }
             catch (Exception e)
             {
-                SuperController.LogError($"AudioMate.{nameof(AudioMateController)}.{nameof(SetAudioSourceAtom)}: {e}");
+                SuperController.LogError($"AudioMate.{nameof(AudioMateController)}.{nameof(SetReceivingAtom)}: {e}");
             }
         }
 
         /**
 		* Load audio source receiver.
 		*/
-        private void SetAudioSourceReceiver(string uid)
+        private void SetReceivingNode(string uid)
         {
             if (Tools.IsEmptyChoice(uid) || (UnityEngine.Object) collections == (UnityEngine.Object) null || collections.ActiveCollection == null) return;
-            sourceReceiver = SuperController.singleton.GetAtomByUid(_receivingAtomJSON.val)?.GetStorableByID(uid);
-            if (sourceReceiver == null) return;
-            _receivingNodeJSON.valNoCallback = sourceReceiver.name;
-            collections.ActiveCollection.ReceiverNode = sourceReceiver.name;
+            receivingNode = SuperController.singleton.GetAtomByUid(_receivingAtomJSON.val)?.GetStorableByID(uid);
+            if (receivingNode == null)
+            {
+                _missingReceiverNodeStoreId = uid;
+                return;
+            }
+
+            insideRestore = true;
+            _receivingNodeJSON.val = receivingNode.name;
+            insideRestore = false;
+            collections.ActiveCollection.ReceiverNode = receivingNode.name;
             collections.ActiveCollection.SyncAudioReceiver();
         }
 
+        protected void FindMissingReceiverNode() {
+            if (_missingReceiverNodeStoreId != "" && receivingAtom != null) {
+                var missingReceiver = receivingAtom.GetStorableByID(_missingReceiverNodeStoreId);
+                if (missingReceiver == null) return;
+                Log($"Late loading receiver node detected: {_missingReceiverNodeStoreId}");
+                SetReceivingNode(_missingReceiverNodeStoreId);
+                _missingReceiverNodeStoreId = "";
+            }
+        }
         #endregion
 
         #region Debug

@@ -14,6 +14,7 @@ namespace AudioMate.UI
     {
 
         private static RectTransform _content;
+        public bool IsUpdated;
 
         public static ClipLibrary AddTo(Transform parent)
         {
@@ -93,6 +94,8 @@ namespace AudioMate.UI
             var container = CreateContainer();
             prefabFactory = container.gameObject.AddComponent<VamPrefabFactory>();
             prefabFactory.controller = controller;
+
+            _controller.fileManager.OnNewFilesImported.AddListener(OnSourceClipsUpdated);
         }
 
         public void Bind()
@@ -129,6 +132,7 @@ namespace AudioMate.UI
 
         private IEnumerator DeferredWaitForSourceClips()
         {
+            if (isRefreshing) yield break;
             isRefreshing = true;
             if (_sourceClipList == null)
             {
@@ -144,15 +148,17 @@ namespace AudioMate.UI
 
             // Convert new clips to AudioMateClips and add them to the list
             var clipCount = 0;
-            foreach (var audioMateClip in
-                from sourceClip in _sourceClipList
-                where Clips.Find(x => x.SourceClip.uid == sourceClip.uid) == null
-                select CreateClip(sourceClip))
+            foreach (var sourceClip in _sourceClipList)
             {
-                if (audioMateClip == null) continue;
-                Clips.Add(audioMateClip);
-                clipCount++;
+                if (Clips.Find(x => x.SourceClip.uid == sourceClip.uid) == null)
+                {
+                    var audioMateClip = CreateClip(sourceClip);
+                    if (audioMateClip == null) continue;
+                    Clips.Add(audioMateClip);
+                    clipCount++;
+                }
             }
+
             Log($"   - Added {clipCount} clips to library.");
             // If source clip list is bigger than AudioMateClip list after refresh then we have orphaned (=with missing source clip)
             // entries in the AudioMateClip list.
@@ -160,6 +166,8 @@ namespace AudioMate.UI
             {
                 RemoveOrphanedClips();
             }
+
+            IsUpdated = true;
             RefreshUI();
             isRefreshing = false;
         }
@@ -221,6 +229,37 @@ namespace AudioMate.UI
             clip.RefreshUI();
 
             return clip;
+        }
+
+        public AudioMateClip FindAudioMateClipBySourceClipUID(string sourceClipUID)
+        {
+            var clip = Clips.Find(x => x.SourceClip.uid == sourceClipUID);
+            return clip;
+        }
+
+        public void ProcessProvisionalClips()
+        {
+            Log($"Trying to solve provisional clips.");
+
+            var unknownClips = 0;
+            foreach (var collection in _collections.CollectionsWithProvisionalClips)
+            {
+                Log($"Processing collection {collection.Name}.");
+
+                foreach (var provisionalClip in collection.GetProvisionalClips())
+                {
+                    var audioMateClip = FindAudioMateClipBySourceClipUID(provisionalClip.SourceClip.uid);
+                    if (audioMateClip == null)
+                    {
+                        unknownClips++;
+                        continue;
+                    }
+
+                    collection.SwapProvisionalClip(provisionalClip, audioMateClip);
+                }
+            }
+            Log($"Found {unknownClips} unknown clips while processing provisional clips.");
+            RefreshUI();
         }
 
         public void RefreshUI()

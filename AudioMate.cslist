@@ -4,6 +4,7 @@ src/UI/Element/HorizontalButtonGroup.cs
 src/UI/VamPrefabFactory.cs
 src/UI/ClipLibrary.cs
 src/UI/UIManager.cs
+src/Component/FileManager.cs
 src/Component/TriggerManager.cs
 src/Component/AudioMateClip.cs
 src/Component/AudioMateClipCollection.cs
